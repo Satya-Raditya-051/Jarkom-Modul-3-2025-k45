@@ -211,6 +211,11 @@ hanya dapat mengirim pesan ke luar Arda setelah melewati pemeriksaan di Minastir
 		iptables -A FORWARD -i eth4 -o eth0 -p udp --dport 53 -j DROP
 		iptables -A FORWARD -i eth4 -o eth0 -p tcp --dport 53 -j DROP
       ```
+4. Verifikasi:
+	- masuk ke salah satu client statis
+	- cek `cat /etc/resolv.conf` pastikan isinya nameserver 10.86.5.2
+ 	- coba ping google.com. Jika berhasil, Minastir bekerja
+
 **SOAL 4:**
 Ratu Erendis, sang pembuat peta, menetapkan nama resmi untuk wilayah utama (<xxxx>.com). Ia menunjuk dirinya (ns1.<xxxx>.com) dan muridnya Amdir (ns2.<xxxx>.com) sebagai penjaga peta resmi. Setiap lokasi penting (Palantir, Elros, Pharazon, Elendil, Isildur, Anarion, Galadriel, Celeborn, Oropher) diberikan nama domain unik yang menunjuk ke lokasi fisik tanah mereka. Pastikan Amdir selalu menyalin peta (master-slave) dari Erendis dengan setia.
 
