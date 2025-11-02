@@ -155,6 +155,60 @@ Raja Pelaut Aldarion, penguasa wilayah Númenor, memutuskan cara pembagian tanah
    - restart dhcp relay dengan `service isc-dhcp-relay restart`
   
 **SOAL 3:**
+Untuk mengontrol arus informasi ke dunia luar (Valinor/Internet), sebuah menara 
+pengawas, Minastir didirikan. Minastir mengatur agar semua node (kecuali Durin) 
+hanya dapat mengirim pesan ke luar Arda setelah melewati pemeriksaan di Minastir. 
 
 **PENGERJAAN:**
+1. Di minastir:
+   - Intall dnsmasq
+     ```
+     apt-get update
+	 apt-get install dnsmasq -y
+     ```
+   - masuk ke konfig `nano /etc/dnsmasq.conf` dan tambahkan
+     ```
+	 # agar dnsmasq untuk membaca /etc/resolv.conf untuk upstream
+		no-resolv
+     
+	 # upstream server DNS "Valinor"/Internet, Hanya Minastir yang akan berbicara dengan alamat ini.
+		server=192.168.122.1
 
+	 # Memberitahu dnsmasq untuk mendengarkan di IP-nya sendiri
+		listen-address=127.0.0.1, 10.86.5.2
+     ```
+   - atur resolver minastir dengan `echo "nameserver 127.0.0.1" > /etc/resolv.conf`
+   - restart dnsmasq dengan `service dnsmasq restart`
+     
+2. Arahkan node lain ke minastir:
+   node dinamis:
+	- masuk ke aldarion
+ 	- edit konfig dhcpd.conf: `nano /etc/dhcp/dhcpd.conf`
+    - di baris `option domain-name-servers ...`, ubah menjadi `option domain-name-servers 10.86.5.2;` untuk mengarahkan ke mianstir
+    - restart dhcp servernya aldarion dengan `service isc-dhcp-server restart`
+    - restart client dinamis lainnya (Amandil, Gilgalad, Khamul) dengan stop & start
+   node statis:
+	- masuk ke setiap node statis dan ganti nameserver dengan command `echo "nameserver 10.86.5.2" > /etc/resolv.conf` atau masukkan dalam config
+
+3. Di durin:
+    - masukan command iptables berikut:
+      ```
+		# 1. Izinkan minastir (10.86.5.2) mengirim query DNS (port 53) ke Internet
+		iptables -A FORWARD -s 10.86.5.2 -o eth0 -p udp --dport 53 -j ACCEPT
+		iptables -A FORWARD -s 10.86.5.2 -o eth0 -p tcp --dport 53 -j ACCEPT
+
+		# 2. Blokir semua node lain dari mengirim query DNS ke Internet
+		# blokir berdasarkan interface sumber (eth1, eth2, eth3, eth4)
+		iptables -A FORWARD -i eth1 -o eth0 -p udp --dport 53 -j DROP
+		iptables -A FORWARD -i eth1 -o eth0 -p tcp --dport 53 -j DROP
+
+		iptables -A FORWARD -i eth2 -o eth0 -p udp --dport 53 -j DROP
+		iptables -A FORWARD -i eth2 -o eth0 -p tcp --dport 53 -j DROP
+
+		iptables -A FORWARD -i eth3 -o eth0 -p udp --dport 53 -j DROP
+		iptables -A FORWARD -i eth3 -o eth0 -p tcp --dport 53 -j DROP
+
+		iptables -A FORWARD -i eth4 -o eth0 -p udp --dport 53 -j DROP
+		iptables -A FORWARD -i eth4 -o eth0 -p tcp --dport 53 -j DROP
+      ```
+      
