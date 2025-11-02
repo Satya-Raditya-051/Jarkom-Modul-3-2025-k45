@@ -211,4 +211,108 @@ hanya dapat mengirim pesan ke luar Arda setelah melewati pemeriksaan di Minastir
 		iptables -A FORWARD -i eth4 -o eth0 -p udp --dport 53 -j DROP
 		iptables -A FORWARD -i eth4 -o eth0 -p tcp --dport 53 -j DROP
       ```
-      
+**SOAL 4:**
+Ratu Erendis, sang pembuat peta, menetapkan nama resmi untuk wilayah utama (<xxxx>.com). Ia menunjuk dirinya (ns1.<xxxx>.com) dan muridnya Amdir (ns2.<xxxx>.com) sebagai penjaga peta resmi. Setiap lokasi penting (Palantir, Elros, Pharazon, Elendil, Isildur, Anarion, Galadriel, Celeborn, Oropher) diberikan nama domain unik yang menunjuk ke lokasi fisik tanah mereka. Pastikan Amdir selalu menyalin peta (master-slave) dari Erendis dengan setia.
+
+**PENGERJAAN:**
+1. Erendis:
+   - install bind9
+     ```
+	 apt-get update
+	 apt-get install bind9 -y
+     ```
+   - konfig named.conf.options agar Erendis meneruskan query yang tidak ia ketahui ke minastir lewat `nano /etc/bind/named.conf.options`.
+     ```
+		options {
+       		directory "/var/cache/bind";
+
+    	 forwarders {
+        10.86.5.2; // IP Minastir
+    	};
+
+     	allow-query { any; };
+		};
+     ```
+   - konfig named.conf.local untuk menandakan erendis sebagai master lewat `nano /etc/bind/named.conf.local`
+     ```
+		zone "k45.com" {
+    	type master;
+    	file "/etc/bind/db.k45.com"; 
+    	allow-transfer { 10.86.3.2; };
+		};
+     ```
+   - buat file zone `nano /etc/bind/db.k45.com`
+     ```
+     	;
+		$TTL    604800
+		@       IN      SOA     ns1.k45.com. root.k45.com. (
+   		                           1         ; Serial 
+                              604800         ; Refresh
+                               86400         ; Retry
+                             2419200         ; Expire
+                              604800 )       ; Negative Cache TTL
+		;
+		 
+		@       IN      NS      ns1.k45.com.
+		@       IN      NS      ns2.k45.com.
+
+		
+		ns1     IN      A       10.86.3.3       ; IP Erendis
+		ns2     IN      A       10.86.3.2       ; IP Amdir
+
+		; A record lokasi penting  
+		palantir  IN    A       10.86.4.3
+		elros     IN    A       10.86.1.6
+		pharazon  IN    A       10.86.2.6
+		elendil   IN    A       10.86.1.2
+		isildur   IN    A       10.86.1.3
+		anarion   IN    A       10.86.1.4
+		galadriel IN    A       10.86.2.2
+		celeborn  IN    A       10.86.2.3
+		oropher   IN    A       10.86.2.4
+     ```
+ 	- cek config zone `named-checkzone k45.com /etc/bind/db.k45.com` sampai muncul `ok`
+ 	- restart bind9 `service named restart`
+
+2. Amdir:
+   - install bind9
+     ```
+		apt-get update
+		apt-get install bind9 -y
+     ```
+   - konfig named.conf.options
+     ```
+		options {
+    		forwarders {
+        		10.86.5.2; // IP Minastir
+    	   };
+    	allow-query { any; };
+	  	};
+     ```
+    - konfig named.conf.local untuk deklarasi amdir sebagai slave
+      ```
+		zone "k45.com" {
+    		type slave;
+    		file "/var/cache/bind/db.k45.com"; 
+    		masters { 10.86.3.3; }; ]
+			};
+      ```
+     - cek error `named-checkconf`
+     - restart bind9 `service bind9 restart`
+       
+3. Minastir:
+   - edit konfig dnsmasq `nano /etc/dnsmasq.conf` untuk forward semua query untuk k45.com ke Erendis, tambakan diatas setup sebelumnya
+     ```
+     	server=/k45.com/10.86.3.3
+     ```
+   - restart dnsmasq `service dnsmasq restart`
+
+4. cek dari klien:
+   - masuk ke klien manapun
+   - masukkan `dig (uniquename).k45.com` cek output memberikan ip yang sesuai atau tidak
+
+**SOAL 5:**
+Untuk memudahkan, nama alias www.<xxxx>.com dibuat untuk peta utama <xxxx>.com. Reverse PTR juga dibuat agar lokasi Erendis dan Amdir dapat dilacak dari alamat fisik tanahnya. Erendis juga menambahkan pesan rahasia (TXT record) pada petanya: "Cincin Sauron" yang menunjuk ke lokasi Elros, dan "Aliansi Terakhir" yang menunjuk ke lokasi Pharazon. Pastikan Amdir juga mengetahui pesan rahasia ini.
+
+**PENGERJAAN:**
+
